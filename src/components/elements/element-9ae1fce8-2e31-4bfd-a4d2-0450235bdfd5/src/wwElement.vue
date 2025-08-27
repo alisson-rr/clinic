@@ -291,7 +291,37 @@
                     <i class="fas fa-quote-left"></i>
                 </button>
 
-                <span class="separator" v-if="menu.link || menu.image || menu.codeBlock || menu.blockquote"></span>
+                <!-- Math -->
+                <button
+                    type="button"
+                    class="ww-rich-text__menu-item"
+                    @click="insertInlineMath()"
+                    :disabled="!isEditable"
+                    v-if="menu.inlineMath"
+                >
+                    <i class="fas fa-subscript"></i>
+                </button>
+                <button
+                    type="button"
+                    class="ww-rich-text__menu-item"
+                    @click="insertBlockMath()"
+                    :disabled="!isEditable"
+                    v-if="menu.blockMath"
+                >
+                    <i class="fas fa-square-root-alt"></i>
+                </button>
+
+                <span
+                    class="separator"
+                    v-if="
+                        menu.link ||
+                        menu.image ||
+                        menu.codeBlock ||
+                        menu.blockquote ||
+                        menu.inlineMath ||
+                        menu.blockMath
+                    "
+                ></span>
 
                 <!-- Undo/Redo -->
                 <button
@@ -321,6 +351,7 @@
 </template>
 
 <script>
+import 'katex/dist/katex.min.css';
 import { Editor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import Mention from '@tiptap/extension-mention';
@@ -337,6 +368,7 @@ import Table from '@tiptap/extension-table';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import TableRow from '@tiptap/extension-table-row';
+import { Mathematics } from '@tiptap/extension-mathematics';
 
 import { computed, inject } from 'vue';
 import suggestion from './suggestion.js';
@@ -373,12 +405,10 @@ export default {
         content: { type: Object, required: true },
         uid: { type: String, required: true },
         wwElementState: { type: Object, required: true },
-
         useForm: { type: Boolean, default: true },
     },
     emits: ['trigger-event', 'update:content:effect', 'update:sidepanel-content'],
     setup(props, { emit }) {
-
         const { value: variableValue, setValue } = wwLib.wwVariable.useComponentVariable({
             uid: props.uid,
             name: 'value',
@@ -403,7 +433,6 @@ export default {
         });
 
 
-
         const randomUid = wwLib.wwUtils.getUid();
 
         const useForm = inject('_wwForm:useForm', () => {});
@@ -426,7 +455,6 @@ export default {
             states,
             setStates,
             randomUid,
-
         };
     },
     data: () => ({
@@ -452,7 +480,6 @@ export default {
             // If format changed
             if (value !== this.getContent()) this.setValue(this.getContent());
         },
-
         isReadonly: {
             immediate: true,
             handler(value) {
@@ -473,7 +500,6 @@ export default {
     },
     computed: {
         isEditing() {
-
             // eslint-disable-next-line no-unreachable
             return false;
         },
@@ -495,13 +521,15 @@ export default {
                 textAlign: this.richEditor.isActive({ textAlign: 'left' })
                     ? 'left'
                     : this.richEditor.isActive({ textAlign: 'center' })
-                      ? 'center'
-                      : this.richEditor.isActive({ textAlign: 'right' })
-                        ? 'right'
-                        : this.richEditor.isActive({ textAlign: 'justify' })
-                          ? 'justify'
-                          : false,
+                    ? 'center'
+                    : this.richEditor.isActive({ textAlign: 'right' })
+                    ? 'right'
+                    : this.richEditor.isActive({ textAlign: 'justify' })
+                    ? 'justify'
+                    : false,
                 table: this.richEditor.isActive('table'),
+                inlineMath: false,
+                blockMath: false,
             };
         },
         currentColor() {
@@ -557,6 +585,8 @@ export default {
                 image: this.content.parameterImage ?? false,
                 codeBlock: this.content.parameterCodeBlock ?? true,
                 blockquote: this.content.parameterQuote ?? true,
+                inlineMath: this.content.parameterInlineMath ?? false,
+                blockMath: this.content.parameterBlockMath ?? false,
                 undo: this.content.parameterUndo ?? true,
                 redo: this.content.parameterRedo ?? true,
             };
@@ -778,8 +808,13 @@ export default {
                                 char: this.editorConfig.mention.char,
                             },
                         }),
+                    Mathematics.configure({
+                        katexOptions: {
+                            throwOnError: false,
+                        },
+                    }),
                 ],
-                onCreate: () => {
+                onCreate: ({ editor: currentEditor }) => {
                     this.setValue(this.getContent());
                     this.setMentions(this.richEditor.getJSON().content.reduce(extractMentions, []));
                 },
@@ -843,7 +878,6 @@ export default {
             if (this.content.customMenu) this.richEditor.commands.setImage({ src, alt, title });
             else {
                 let url;
-
                 /* wwFront:start */
                 url = wwLib.getFrontWindow().prompt('Image URL');
                 /* wwFront:end */
@@ -903,6 +937,36 @@ export default {
         },
         toggleBlockquote() {
             this.richEditor.chain().focus().toggleBlockquote().run();
+        },
+        insertInlineMath(latex) {
+            // If latex is provided (from action), use it directly, otherwise prompt user
+            const latexExpression = latex || window.prompt('Enter inline LaTeX expression:', '');
+            if (latexExpression) {
+                // Insert with $ delimiters - the extension will auto-convert to rendered math
+                const fullExpression = `$${latexExpression}$`;
+                this.richEditor.chain().focus().insertContent(fullExpression).run();
+
+                // Force decoration update by updating the editor state
+                setTimeout(() => {
+                    const { state } = this.richEditor;
+                    this.richEditor.view.updateState(state);
+                }, 10);
+            }
+        },
+        insertBlockMath(latex) {
+            // If latex is provided (from action), use it directly, otherwise prompt user
+            const latexExpression = latex || window.prompt('Enter block LaTeX expression:', '');
+            if (latexExpression) {
+                // For v2.x, create block math using displaystyle
+                const blockContent = `<p style="text-align: center;">$\\displaystyle ${latexExpression}$</p>`;
+                this.richEditor.chain().focus().insertContent(blockContent).run();
+
+                // Force decoration update by updating the editor state
+                setTimeout(() => {
+                    const { state } = this.richEditor;
+                    this.richEditor.view.updateState(state);
+                }, 10);
+            }
         },
         undo() {
             this.richEditor.chain().undo().run();
@@ -1138,7 +1202,6 @@ export default {
             line-height: var(--a-lineHeight);
             cursor: pointer;
         }
-     
 
         .mention {
             border: var(--mention-borderSize) solid var(--mention-color);
@@ -1297,6 +1360,31 @@ export default {
 
     &.-readonly .ProseMirror {
         cursor: inherit;
+    }
+
+    // Mathematics extension styles
+    .Tiptap-mathematics-editor {
+        background: #202020;
+        color: #fff;
+        font-family: monospace;
+        padding: 0.2rem 0.5rem;
+        border-radius: 0.25rem;
+        display: inline-block;
+    }
+
+    .Tiptap-mathematics-render {
+        padding: 0 0.25rem;
+        border-radius: 0.25rem;
+        display: inline-block;
+
+        &--editable {
+            cursor: pointer;
+            transition: background 0.2s;
+
+            &:hover {
+                background: #eee;
+            }
+        }
     }
 }
 </style>
