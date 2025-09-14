@@ -1,6 +1,7 @@
 import { ref, inject, computed, unref, watch } from 'vue';
 import { getLayoutStyleFromContent } from '@/_front/helpers/wwLayoutStyle';
 import { useRegisterElementLocalContext } from '@/_front/use/useElementLocalContext';
+import { getComponentLabel } from '@/_common/helpers/component/component.js';
 /* wwFront:start */
 import { useRoute } from 'vue-router';
 /* wwFront:end */
@@ -399,4 +400,9 @@ export default {
      * @PUBLIC_API
      */
     useRegisterElementLocalContext,
+
+    /**
+     * @PUBLIC_API
+     */
+    getComponentLabel,
 };

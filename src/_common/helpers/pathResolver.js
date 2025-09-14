@@ -38,3 +38,19 @@ export function getTargetMedia({ screenSize, elementState, isResponsive, allowSt
 
     return targetMedia;
 }
+
+export function splitPath(fullPath) {
+    if (fullPath.startsWith('content.')) {
+        const parts = fullPath.replace('content.', '').split('.');
+        const media = parts[0];
+        const path = `content.${parts.slice(1).join('.')}`;
+        return { path, media };
+    } else if (fullPath.startsWith('_state.style.')) {
+        const parts = fullPath.replace('_state.style.', '').split('.');
+        const media = parts[0];
+        const path = `_state.style.${parts.slice(1).join('.')}`;
+        return { path, media };
+    } else {
+        return { path: fullPath, media: 'default' };
+    }
+}

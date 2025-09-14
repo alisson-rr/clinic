@@ -7,7 +7,7 @@ export default {
      * @DEPRECATED wwLib.wwUtils.getUid
      */
     getUniqueId() {
-        wwLib.wwLog.warn('wwLib.wwUtils.getUniqueId is deprecated, use wwLib.wwLib.getUid instead');
+        wwLib.wwLog.warn('wwLib.wwUtils.getUniqueId is deprecated, use wwLib.wwUtils.getUid instead');
         var d = new Date();
         return Math.floor((d.getTime() * Math.random() + Math.random() * 10000 + Math.random() * 100) / 100);
     },

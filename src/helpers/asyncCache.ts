@@ -1,15 +1,24 @@
-export class AsyncCache {
-    constructor(ttlMs = 60000) {
+interface CacheItem<T> {
+    data: T;
+    timestamp: number;
+}
+
+export class AsyncCache<T = any> {
+    private cache: Map<string, CacheItem<T>>;
+    private TTL: number;
+    private pendingPromises: Map<string, Promise<T>>;
+
+    constructor(ttlMs: number = 60000) {
         // Default 1 minute TTL
         this.cache = new Map();
         this.TTL = ttlMs;
         this.pendingPromises = new Map();
     }
 
-    async get(key, fetchFn) {
+    async get(key: string, fetchFn: () => Promise<T>): Promise<T> {
         // Check if there's already a pending promise for this key
         if (this.pendingPromises.has(key)) {
-            return this.pendingPromises.get(key);
+            return this.pendingPromises.get(key)!;
         }
 
         const cachedItem = this.cache.get(key);
@@ -39,15 +48,15 @@ export class AsyncCache {
         }
     }
 
-    _isExpired(timestamp) {
+    private _isExpired(timestamp: number): boolean {
         return Date.now() - timestamp > this.TTL;
     }
 
-    invalidate(key) {
+    invalidate(key: string): void {
         this.cache.delete(key);
     }
 
-    clear() {
+    clear(): void {
         this.cache.clear();
     }
 }
